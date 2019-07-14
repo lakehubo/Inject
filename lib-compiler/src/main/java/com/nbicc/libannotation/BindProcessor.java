@@ -4,10 +4,14 @@ import com.google.auto.service.AutoService;
 import com.nbicc.libbindview.BindView;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.TypeName;
+
+import java.io.IOException;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -16,7 +20,11 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.tools.JavaFileObject;
 
 /**
  * 注解处理器
@@ -24,18 +32,20 @@ import javax.lang.model.type.TypeMirror;
 @AutoService(Processor.class)
 public class BindProcessor extends AbstractProcessor {
     static final String ACTIVITY_TYPE = "android.app.Activity";
-
+    public static final String SUFFIX = "$$ViewBinder";
     // 存放同一个Class下的所有注解信息
     private Map<TypeElement, BindingObject> bindingMap = new HashMap<>();
     /**
      * 生成代码用的
      */
     private Filer filer;
+    private Elements elementUtils;
 
     @Override
     public synchronized void init(ProcessingEnvironment env) {
         super.init(env);
         filer = env.getFiler();
+        elementUtils = env.getElementUtils();
     }
 
     /**
@@ -71,15 +81,19 @@ public class BindProcessor extends AbstractProcessor {
      *
      * @param roundEnvironment
      */
-    void collectBindViewInfo(RoundEnvironment roundEnvironment) {
+    private void collectBindViewInfo(RoundEnvironment roundEnvironment) {
         Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(BindView.class);
+        Set<String> erasedTargetNames = new LinkedHashSet<String>();
+
         for (Element element : elements) {
             // 备注解元素所在的Class
             TypeElement enclosingElement = (TypeElement) element.getEnclosingElement();
             // 收集Class中所有被注解的元素
             BindingObject bindingObject = bindingMap.get(enclosingElement);
             if (bindingObject == null) {
-                bindingObject = new BindingObject(enclosingElement);
+                String packageName = getPackageName(enclosingElement);
+                String className = getClassName(enclosingElement, packageName);
+                bindingObject = new BindingObject(enclosingElement, packageName, className);
                 bindingMap.put(enclosingElement, bindingObject);
             }
             int rid = element.getAnnotation(BindView.class).value();
@@ -88,24 +102,62 @@ public class BindProcessor extends AbstractProcessor {
             TypeName typeName = TypeName.get(elementType);
             BindViewFiled bindViewFiled = new BindViewFiled(element, rid, name, typeName);
             bindingObject.addField(bindViewFiled);
+            erasedTargetNames.add(enclosingElement.toString());
+        }
+        //检查是否有继承
+        for (Map.Entry<TypeElement, BindingObject> entry : bindingMap.entrySet()) {
+            String parentTypeElement = findParentFqcn(entry.getKey(), erasedTargetNames);
+            if (parentTypeElement != null) {
+                entry.getValue().setParentObject(parentTypeElement + SUFFIX);
+            }
         }
     }
 
     /**
      * 生成注解方法
      */
-    void writeToFile() {
-        try {
-            for (Map.Entry<TypeElement, BindingObject> entry : bindingMap.entrySet()) {
-                Element enclosingElement = entry.getKey();
-                BindingObject bindingObject = entry.getValue();
+    private void writeToFile() {
+        for (Map.Entry<TypeElement, BindingObject> entry : bindingMap.entrySet()) {
+            TypeElement typeElement = entry.getKey();
+            BindingObject bindingObject = entry.getValue();
 
-                JavaFile javaFile = bindingObject.brewJava();
-                // 生成class文件
-                javaFile.writeTo(filer);
+            try {
+                JavaFileObject jfo = filer.createSourceFile(bindingObject.getFqcn(), typeElement);
+                Writer writer = jfo.openWriter();
+                writer.write(bindingObject.brewJava());
+                writer.flush();
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (Exception ex) {
-            ex.printStackTrace();
         }
+
+    }
+
+    /**
+     * Finds the parent binder type in the supplied set, if any.
+     */
+    private String findParentFqcn(TypeElement typeElement, Set<String> parents) {
+        TypeMirror type;
+        while (true) {
+            type = typeElement.getSuperclass();
+            if (type.getKind() == TypeKind.NONE) {
+                return null;
+            }
+            typeElement = (TypeElement) ((DeclaredType) type).asElement();
+            if (parents.contains(typeElement.toString())) {
+                String packageName = getPackageName(typeElement);
+                return packageName + "." + getClassName(typeElement, packageName);
+            }
+        }
+    }
+
+    private static String getClassName(TypeElement type, String packageName) {
+        int packageLen = packageName.length() + 1;
+        return type.getQualifiedName().toString().substring(packageLen).replace('.', '$');
+    }
+
+    private String getPackageName(TypeElement type) {
+        return elementUtils.getPackageOf(type).getQualifiedName().toString();
     }
 }

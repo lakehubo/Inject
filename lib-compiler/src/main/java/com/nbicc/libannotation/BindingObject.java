@@ -7,9 +7,11 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
+import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.annotation.Nullable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -20,7 +22,7 @@ import static javax.lang.model.element.Modifier.PUBLIC;
 /**
  * 被添加注解的类
  */
-public class BindingObject {
+final class BindingObject {
 
     static final ClassName UTILS = ClassName.get("com.nbicc.libinject", "Utils");
     private static final ClassName UNBINDER = ClassName.get("com.nbicc.libinject", "Unbinder");
@@ -30,40 +32,46 @@ public class BindingObject {
     private static final ClassName CONTEXT = ClassName.get("android.content", "Context");
 
 
-    protected TypeElement enclosingElement;
+    private final TypeElement enclosingElement;
     private final TypeName targetTypeName;
-    private final ClassName bindingClassName;
-    private final boolean isActivity;
     private final Set<BaseBinding> baseBindings;
+    private @Nullable
+    String parentObject;
+    private final String packageName;
+    private final String className;
 
-    public BindingObject(TypeElement typeElement) {
+    BindingObject(TypeElement typeElement, String packageName, String className) {
         this.enclosingElement = typeElement;
         this.baseBindings = new HashSet<>();
         TypeMirror typeMirror = enclosingElement.asType();
         this.targetTypeName = TypeName.get(typeMirror);
-        this.isActivity = true;
-        String packageName = getPackage(enclosingElement).getQualifiedName().toString();
-        String className = enclosingElement.getQualifiedName().toString().substring(
-                packageName.length() + 1).replace('.', '$');
-        bindingClassName = ClassName.get(packageName, className + "_ViewBinding");
+        this.packageName = packageName;
+        this.className = className + "_ViewBinding";
     }
 
-    JavaFile brewJava() {
+    String getFqcn() {
+        return packageName + "." + className;
+    }
+
+    String brewJava() {
         TypeSpec bindingTypeSpec = createTypeSpec();
-        return JavaFile.builder(bindingClassName.packageName(), bindingTypeSpec).build();
+        return JavaFile.builder(packageName, bindingTypeSpec).build().toString();
     }
 
     private TypeSpec createTypeSpec() {
-        TypeSpec.Builder result = TypeSpec.classBuilder(bindingClassName.simpleName())
+        TypeSpec.Builder result = TypeSpec.classBuilder(className)
                 .addModifiers(PUBLIC);
 
-        result.addSuperinterface(UNBINDER);
+        if (parentObject != null) {
+//            result.addSuperinterface();
+        } else {
+            result.addSuperinterface(UNBINDER);
+        }
+
         if (hasTargetField())
             result.addField(targetTypeName, "target", PRIVATE);
-        if (isActivity)
-            result.addMethod(createBindingConstructorForActivity());
         result.addMethod(createBindingConstructor());
-        if (hasFieldBindings())
+        if (hasFieldBindings() || parentObject == null)
             result.addMethod(createBindingUnbindMethod(result));
         // 构建Class
         return result.build();
@@ -80,10 +88,14 @@ public class BindingObject {
                 .addModifiers(PUBLIC);
 
         constructor.addParameter(targetTypeName, "target");
-        if(constructorNeedsView()){
+        if (constructorNeedsView()) {
             constructor.addParameter(VIEW, "source");
-        }else{
+        } else {
             constructor.addParameter(CONTEXT, "context");
+        }
+        if (parentObject != null) {
+            constructor.addStatement("super(target,context)");
+            constructor.addCode("\n");
         }
         if (hasFieldBindings()) {
             constructor.addStatement("this.target = target");
@@ -120,20 +132,15 @@ public class BindingObject {
                 result.addStatement("target.$L = null", ((BindViewFiled) baseBinding).getName());
         }
 
+        if (parentObject != null) {
+            result.addCode("\n");
+            result.addStatement("super.unbind()");
+        }
         return result.build();
     }
 
-    private MethodSpec createBindingConstructorForActivity() {
-        MethodSpec.Builder builder = MethodSpec.constructorBuilder()
-                .addAnnotation(UI_THREAD)
-                .addModifiers(PUBLIC)
-                .addParameter(targetTypeName, "target");
-        if (hasFieldBindings()) {
-            builder.addStatement("this(target, target.getWindow().getDecorView())");
-        } else {
-            builder.addStatement("this(target, target)");
-        }
-        return builder.build();
+    public void setParentObject(@Nullable String parentObject) {
+        this.parentObject = parentObject;
     }
 
     protected void addField(BaseBinding baseBinding) {
