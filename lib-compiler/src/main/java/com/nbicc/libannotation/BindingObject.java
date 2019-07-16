@@ -122,13 +122,18 @@ final class BindingObject {
     }
 
     private void addMethodByFilter(MethodSpec.Builder result) {
-        Map<String,Integer> filters = new LinkedHashMap<>();
+        Map<String, Integer> filters = new LinkedHashMap<>();
         for (BaseBinding baseBinding : baseBindings) {
             if (baseBinding instanceof BindBroadCast) {
                 BindBroadCast bindBroadCast = (BindBroadCast) baseBinding;
                 String[] fs = bindBroadCast.getFilter();
                 for (String s : fs) {
-                    if(filters)
+                    if (filters.get(s) == null) {
+                        result.addStatement("if(intent.getAction().equals($S)){target.$L(context,intent);}", s, bindBroadCast.getMethodName());
+                        filters.put(s, 1);
+                    } else {
+
+                    }
                 }
             }
         }
