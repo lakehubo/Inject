@@ -4,21 +4,31 @@ import android.app.Activity;
 import android.support.annotation.NonNull;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 
 public class InjectView {
 
-    public static Unbinder bind(@NonNull Activity activity) {
+    public static void bind(@NonNull Activity activity) {
+        //判断当前类是否被继承
         try {
-            Class<? extends Unbinder> bindClassName = (Class<? extends Unbinder>)
-                    Class.forName(activity.getClass().getName() + "_ViewBinding");
+            Class<?> bindClassName = Class.forName(activity.getClass().getName() + "_ViewBinding");
             // 构造函数
-            Constructor<? extends Unbinder> bindConstructor = bindClassName.getDeclaredConstructor(activity.getClass());
-            Unbinder unbinder = bindConstructor.newInstance(activity);
-            // 返回 Unbinder
-            return unbinder;
+            Constructor<?> bindConstructor = bindClassName.getDeclaredConstructor(activity.getClass());
+            bindConstructor.newInstance(activity);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return Unbinder.EMPTY;
     }
+
+    public static void unbind(@NonNull Activity activity) {
+        try {
+            Class<?> bindClassName = Class.forName(activity.getClass().getName() + "_ViewBinding");
+            // 构造函数
+            Method unbind = bindClassName.getDeclaredMethod("unbind");
+            unbind.invoke(bindClassName);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }

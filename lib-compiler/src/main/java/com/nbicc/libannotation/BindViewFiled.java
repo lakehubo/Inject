@@ -5,14 +5,14 @@ import com.squareup.javapoet.TypeName;
 import javax.lang.model.element.Element;
 
 /**
- * 被注解的对象
+ * 被注解的View对象
  */
 public class BindViewFiled extends BaseBinding {
     private int rid;
     private String name;
     private TypeName type;
 
-    public BindViewFiled(Element element,  int rid, String name, TypeName type) {
+    public BindViewFiled(Element element, int rid, String name, TypeName type) {
         super(element);
         this.rid = rid;
         this.name = name;
@@ -23,8 +23,8 @@ public class BindViewFiled extends BaseBinding {
         return rid;
     }
 
-    public void setRid(int rid) {
-        this.rid = rid;
+    public void setRid(int rids) {
+        this.rid = rids;
     }
 
     public String getName() {
