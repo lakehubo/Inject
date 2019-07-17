@@ -5,14 +5,12 @@ import com.nbicc.libbindview.BindBroadcastReceiver;
 import com.nbicc.libbindview.BindClick;
 import com.nbicc.libbindview.BindView;
 import com.squareup.javapoet.TypeName;
-
 import java.io.Writer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -31,11 +29,9 @@ import javax.tools.JavaFileObject;
  */
 @AutoService(Processor.class)
 public class BindProcessor extends AbstractProcessor {
-    // 存放同一个Class下的所有注解信息
+    // 存放同一个TypeElement下的所有注解信息
     private Map<TypeElement, BindingObject> bindingMap = new HashMap<>();
-    /**
-     * 生成代码用的
-     */
+
     private Filer filer;
     private Elements elementUtils;
 
@@ -54,7 +50,6 @@ public class BindProcessor extends AbstractProcessor {
     @Override
     public Set<String> getSupportedAnnotationTypes() {
         Set<String> annotationTypes = new LinkedHashSet<>();
-        //添加需要支持的注解
         annotationTypes.add(BindView.class.getCanonicalName());
         annotationTypes.add(BindClick.class.getCanonicalName());
         annotationTypes.add(BindBroadcastReceiver.class.getCanonicalName());
@@ -121,8 +116,6 @@ public class BindProcessor extends AbstractProcessor {
     private void collectBindClickInfo(RoundEnvironment roundEnvironment) {
         Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(BindClick.class);
         for (Element element : elements) {
-            // 备注解元素所在的Class
-            // 收集Class中所有被注解的元素
             BindingObject bindingObject = getOrCreateBindingObject((TypeElement) element.getEnclosingElement());
             int[] rids = element.getAnnotation(BindClick.class).value();
             String name = element.getSimpleName().toString();
@@ -132,15 +125,13 @@ public class BindProcessor extends AbstractProcessor {
     }
 
     /**
-     * 收集所有BindBoradcastReceiver注解信息
+     * 收集所有BindBroadcastReceiver注解信息
      *
      * @param roundEnvironment
      */
     private void collectBroadCastInfo(RoundEnvironment roundEnvironment) {
         Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(BindBroadcastReceiver.class);
         for (Element element : elements) {
-            // 备注解元素所在的Class
-            // 收集Class中所有被注解的元素
             BindingObject bindingObject = getOrCreateBindingObject((TypeElement) element.getEnclosingElement());
             String[] filter = element.getAnnotation(BindBroadcastReceiver.class).value();
             String name = element.getSimpleName().toString();

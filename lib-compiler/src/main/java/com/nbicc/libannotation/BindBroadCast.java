@@ -2,6 +2,9 @@ package com.nbicc.libannotation;
 
 import javax.lang.model.element.Element;
 
+/**
+ * 被注解的广播
+ */
 public class BindBroadCast extends BaseBinding{
     private String[] filter;
     private String methodName;
