@@ -2,6 +2,7 @@ package com.nbicc.inject;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -15,13 +16,10 @@ import com.nbicc.libbindview.BindView;
 public class TestActivity extends BaseActivity {
     @BindView({R.id.tv, R.id.tv2})
     TextView tv, tv2;
-
     @BindView(R.id.tv3)
     TextView tv3;
-
     @BindView({R.id.tv4, R.id.tv5})
     TextView tv4, tv5;
-
     @BindView(R.id.btn)
     Button btn;
 
@@ -41,7 +39,7 @@ public class TestActivity extends BaseActivity {
         tv.setText("i am a click");
     }
 
-    @BindBroadcastReceiver(Intent.ACTION_PACKAGE_REPLACED)
+    @BindBroadcastReceiver(WifiManager.WIFI_STATE_CHANGED_ACTION)
     public void reciver(Context context, Intent intent){
         Log.e("lake", "reciver: ");
     }
