@@ -4,7 +4,7 @@
 练习注解使用方法
 
 使用方式
-```java
+```gradle
 
 allprojects {
 		repositories {
