@@ -56,6 +56,8 @@ public class BindProcessor extends AbstractProcessor {
         Set<String> annotationTypes = new LinkedHashSet<>();
         //添加需要支持的注解
         annotationTypes.add(BindView.class.getCanonicalName());
+        annotationTypes.add(BindClick.class.getCanonicalName());
+        annotationTypes.add(BindBroadcastReceiver.class.getCanonicalName());
         return annotationTypes;
     }
 
@@ -124,9 +126,8 @@ public class BindProcessor extends AbstractProcessor {
             BindingObject bindingObject = getOrCreateBindingObject((TypeElement) element.getEnclosingElement());
             int[] rids = element.getAnnotation(BindClick.class).value();
             String name = element.getSimpleName().toString();
-
-            BindViewMethod bindViewMethod = new BindViewMethod(element, rids, name);
-            bindingObject.addField(bindViewMethod);
+            BindClickMethod bindClickMethod = new BindClickMethod(element, rids, name);
+            bindingObject.addField(bindClickMethod);
         }
     }
 
@@ -183,7 +184,6 @@ public class BindProcessor extends AbstractProcessor {
                 e.printStackTrace();
             }
         }
-
     }
 
     private static String getClassName(TypeElement type, String packageName) {

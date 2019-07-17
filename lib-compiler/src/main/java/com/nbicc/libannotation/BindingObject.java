@@ -9,6 +9,7 @@ import com.squareup.javapoet.TypeSpec;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,8 +49,7 @@ final class BindingObject {
 
     String brewJava() {
         TypeSpec bindingTypeSpec = createTypeSpec();
-        JavaFile.Builder builder = JavaFile.builder(packageName, bindingTypeSpec);
-        return builder.build().toString();
+        return JavaFile.builder(packageName, bindingTypeSpec).build().toString();
     }
 
     //新建类
@@ -59,19 +59,29 @@ final class BindingObject {
         if (hasTargetField())
             result.addField(targetTypeName, "target", PRIVATE);
         result.addMethod(createBindingConstructor());
-        if (hasMethodBindings()) {
+        if (hasClickMethodBindings()) {
             result.addSuperinterface(CLICK);
             result.addMethod(createClickMethod());
         }
         if (hasBroadCastBindings()) {
+            ClassName MYBROADCAST = ClassName.get(targetTypeName + "_ViewBinding", "MyBroadCastReceiver");
             result.addField(FILTER, "filter", PRIVATE);
-            result.superclass(BROADCAST);
-            result.addMethod(createOnReceiver());
+            result.addField(MYBROADCAST, "myBroadCastReceiver", PRIVATE);
+            result.addType(createBroadCastTypeSpec());
         }
         if (hasFieldBindings())
             result.addMethod(createBindingUnbindMethod());
         // 构建Class
         return result.build();
+    }
+
+    //创建广播内部类
+    private TypeSpec createBroadCastTypeSpec() {
+        TypeSpec.Builder builder = TypeSpec.classBuilder("MyBroadCastReceiver")
+                .superclass(BROADCAST)
+                .addModifiers(PRIVATE);
+        builder.addMethod(createOnReceiver());
+        return builder.build();
     }
 
     //构建构造方法
@@ -89,7 +99,7 @@ final class BindingObject {
         if (hasBroadCastBindings()) {
             constructor.addStatement("filter = new IntentFilter()");
             addBroadCastFilter(constructor);
-            constructor.addStatement("target.registerReceiver(this,filter)");
+            constructor.addStatement("target.registerReceiver(myBroadCastReceiver,filter)");
         }
         addViewBinding(constructor);
         addClickBinding(constructor);
@@ -105,7 +115,7 @@ final class BindingObject {
         result.addCode("switch(view.getId()){\n");
         for (BaseBinding baseBinding : baseBindings)
             addClickMethod(result, baseBinding);
-        result.addStatement("default:break");
+        result.addStatement("default:\nbreak");
         result.addCode("}\n");
         return result.build();
     }
@@ -121,21 +131,38 @@ final class BindingObject {
         return result.build();
     }
 
+    //广播截获
     private void addMethodByFilter(MethodSpec.Builder result) {
-        Map<String, Integer> filters = new LinkedHashMap<>();
+        Map<String, Set<String>> filters = new LinkedHashMap<>();
         for (BaseBinding baseBinding : baseBindings) {
             if (baseBinding instanceof BindBroadCast) {
                 BindBroadCast bindBroadCast = (BindBroadCast) baseBinding;
                 String[] fs = bindBroadCast.getFilter();
                 for (String s : fs) {
-                    if (filters.get(s) == null) {
-                        result.addStatement("if(intent.getAction().equals($S)){target.$L(context,intent);}", s, bindBroadCast.getMethodName());
-                        filters.put(s, 1);
-                    } else {
-
+                    Set<String> method = filters.get(s);
+                    if (method == null) {
+                        method = new LinkedHashSet<>();
+                        filters.put(s, method);
                     }
+                    method.add(bindBroadCast.getMethodName());
                 }
             }
+        }
+        if (filters.isEmpty())
+            return;
+        for (Map.Entry<String, Set<String>> map : filters.entrySet()) {
+            String filter = map.getKey();
+            Set<String> methods = map.getValue();
+            if (filter == null || methods.isEmpty())
+                continue;
+            CodeBlock.Builder builder = CodeBlock.builder();
+            builder.add("if($S.equals(intent.getAction())){\n", filter);
+            for (String m : methods) {
+                if (m != null)
+                    builder.add("target.$N(context,intent);\n", m);
+            }
+            builder.add("}\n");
+            result.addCode(builder.build());
         }
     }
 
@@ -145,7 +172,7 @@ final class BindingObject {
                 .addAnnotation(UI_THREAD)
                 .addModifiers(PUBLIC);
         if (hasBroadCastBindings()) {
-            result.addStatement("if (target != null)target.unregisterReceiver(this)");
+            result.addStatement("if (target != null)target.unregisterReceiver(myBroadCastReceiver)");
         }
         if (hasFieldBindings()) {
             result.addStatement("$T target = this.target", targetTypeName);
@@ -179,9 +206,9 @@ final class BindingObject {
     }
 
     //是否有点击方法绑定
-    private boolean hasMethodBindings() {
+    private boolean hasClickMethodBindings() {
         for (BaseBinding baseBinding : baseBindings) {
-            if (baseBinding instanceof BindViewMethod)
+            if (baseBinding instanceof BindClickMethod)
                 return true;
         }
         return false;
@@ -193,7 +220,7 @@ final class BindingObject {
             if (baseBinding instanceof BindBroadCast)
                 return true;
         }
-        return true;
+        return false;
     }
 
     //新增view绑定 多view绑定
@@ -215,8 +242,8 @@ final class BindingObject {
     //实现点击接口
     private void addClickBinding(MethodSpec.Builder result) {
         for (BaseBinding baseBinding : baseBindings) {
-            if (baseBinding instanceof BindViewMethod) {
-                BindViewMethod clickBinding = (BindViewMethod) baseBinding;
+            if (baseBinding instanceof BindClickMethod) {
+                BindClickMethod clickBinding = (BindClickMethod) baseBinding;
                 int[] rids = clickBinding.getRids();
                 for (int id : rids) {
                     String name = findMethodFiled(id);
@@ -245,15 +272,15 @@ final class BindingObject {
 
     //新增方法
     private void addClickMethod(MethodSpec.Builder result, BaseBinding baseBinding) {
-        if (baseBinding instanceof BindViewMethod) {
-            BindViewMethod clickBinding = (BindViewMethod) baseBinding;
+        if (baseBinding instanceof BindClickMethod) {
+            BindClickMethod clickBinding = (BindClickMethod) baseBinding;
             CodeBlock.Builder builder = CodeBlock.builder();
             for (int id : clickBinding.getRids()) {
                 builder.add("case $L:\n", id);
             }
-            builder.add("{this.target.$L(view);}\n", clickBinding.getMethodName());
-            builder.add("break");
-            result.addStatement("$L", builder.build());
+            builder.add("{this.target.$L(view);", clickBinding.getMethodName());
+            builder.add("break;}\n");
+            result.addCode("$L", builder.build());
         }
     }
 

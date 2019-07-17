@@ -5,11 +5,11 @@ import javax.lang.model.element.Element;
 /**
  * 被注解的method方法
  */
-public class BindViewMethod extends BaseBinding {
+public class BindClickMethod extends BaseBinding {
     private int[] rids;
     private String methodName;
 
-    public BindViewMethod(Element element, int[] rids, String methodName) {
+    public BindClickMethod(Element element, int[] rids, String methodName) {
         super(element);
         this.rids = rids;
         this.methodName = methodName;
