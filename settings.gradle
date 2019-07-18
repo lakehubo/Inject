@@ -1,1 +1,1 @@
-include ':simple', ':lib-compiler', ':lib-annotations', ':lib-api'
+include ':simple', ':injectview'
