@@ -6,16 +6,13 @@ import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-
 import static javax.lang.model.element.Modifier.PRIVATE;
 import static javax.lang.model.element.Modifier.PUBLIC;
 
@@ -171,11 +168,11 @@ final class BindingObject {
         MethodSpec.Builder result = MethodSpec.methodBuilder("unbind")
                 .addAnnotation(UI_THREAD)
                 .addModifiers(PUBLIC);
-        if (hasBroadCastBindings()) {
-            result.addStatement("if (target != null)target.unregisterReceiver(myBroadCastReceiver)");
-        }
         if (hasFieldBindings()) {
             result.addStatement("$T target = this.target", targetTypeName);
+        }
+        if (hasBroadCastBindings()) {
+            result.addStatement("if (target != null)this.target.unregisterReceiver(myBroadCastReceiver)");
         }
         result.addStatement("if (target == null) throw new $T($S)", IllegalStateException.class,
                 "Bindings already cleared.");
