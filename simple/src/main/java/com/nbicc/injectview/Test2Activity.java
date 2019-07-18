@@ -1,10 +1,9 @@
-package com.nbicc.inject;
+package com.nbicc.injectview;
 
 import android.os.Bundle;
 import android.widget.TextView;
 
-import com.nbicc.libbindview.BindView;
-
+import com.lake.injectview.BindView;
 
 public class Test2Activity extends BaseActivity {
     @BindView(R.id.tv6)

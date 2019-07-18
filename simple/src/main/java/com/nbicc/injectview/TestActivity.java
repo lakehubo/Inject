@@ -1,21 +1,20 @@
-package com.nbicc.inject;
+package com.nbicc.injectview;
 
-import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.nbicc.libbindview.BindBroadcastReceiver;
-import com.nbicc.libbindview.BindClick;
-import com.nbicc.libbindview.BindView;
+import com.lake.injectview.BindBroadcastReceiver;
+import com.lake.injectview.BindClick;
+import com.lake.injectview.BindView;
 
 public class TestActivity extends BaseActivity {
     @BindView({R.id.tv, R.id.tv2})
-    TextView tv, tv2;
+    TextView text1, tv2;
     @BindView(R.id.tv3)
     TextView tv3;
     @BindView({R.id.tv4, R.id.tv5})
@@ -23,11 +22,12 @@ public class TestActivity extends BaseActivity {
     @BindView(R.id.btn)
     Button btn;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setContentView(R.layout.activity_main);
         super.onCreate(savedInstanceState);
-        tv.setText("I am injected");
+        text1.setText("I am injected");
         tv2.setText("I am injected2");
         tv3.setText("I am injected3");
         tv4.setText("I am injected4");
@@ -35,12 +35,18 @@ public class TestActivity extends BaseActivity {
     }
 
     @BindClick(R.id.btn)
-    public void setTvText(View view) {
-        tv.setText("i am a click");
+    public void setTvText() {
+        text1.setText("i am a click");
     }
 
-    @BindBroadcastReceiver(WifiManager.WIFI_STATE_CHANGED_ACTION)
-    public void reciver(Context context, Intent intent){
+    @BindBroadcastReceiver({WifiManager.WIFI_STATE_CHANGED_ACTION, ConnectivityManager.CONNECTIVITY_ACTION})
+    public void wifiStateReceiver(Intent intent) {
         Log.e("lake", "reciver: ");
+        tv2.setText("收到广播！");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 }

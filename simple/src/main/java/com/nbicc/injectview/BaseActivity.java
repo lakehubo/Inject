@@ -1,9 +1,9 @@
-package com.nbicc.inject;
+package com.nbicc.injectview;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 
-import com.nbicc.libinject.InjectView;
+import com.lake.injectview.InjectView;
 
 public abstract class BaseActivity extends AppCompatActivity{
     @Override
