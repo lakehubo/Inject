@@ -9,6 +9,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.nbicc.libbindview.BindBroadcastReceiver;
+import com.nbicc.libbindview.BindClick;
+import com.nbicc.libbindview.BindView;
+
 public class TestActivity extends BaseActivity {
     @BindView({R.id.tv, R.id.tv2})
     TextView tv, tv2;
