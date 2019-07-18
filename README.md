@@ -15,7 +15,7 @@ allprojects {
   
 
 dependencies {
-	implementation 'com.github.lakehubo:Inject:1.0.0'
+	implementation 'com.github.lakehubo:Inject:1.0.2'
 }
   
   ```
